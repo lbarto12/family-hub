@@ -1,0 +1,12 @@
+.PHONY: run format
+
+run:
+	@echo "Starting App..."
+	bun --bun run dev --port 5888
+	@echo "App Terminated."
+
+format:
+	@echo "Starting Format Job..."
+	bun run lint:fix && bun run check
+	@echo "Fomatting Complete."
+
