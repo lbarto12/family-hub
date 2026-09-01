@@ -10,3 +10,7 @@ format:
 	bun run lint:fix && bun run check
 	@echo "Fomatting Complete."
 
+genMigrations:
+	@echo "Starting migration generation..."
+	bun run db:generate
+	@echo "Done..."

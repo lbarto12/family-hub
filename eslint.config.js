@@ -48,7 +48,7 @@ export default defineConfig(
 	// Global environments & browser settings
 	{
 		languageOptions: {
-			globals: { ...globals.browser, ...globals.node }
+			globals: { ...globals.browser, ...globals.node, Bun: 'readonly' }
 		},
 		rules: {
 			'no-undef': 'off'
