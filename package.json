@@ -59,6 +59,7 @@
 	"dependencies": {
 		"@orpc/client": "^1.14.15",
 		"@orpc/server": "^1.14.15",
+		"jose": "^6.2.10",
 		"zod": "^4.4.3"
 	}
 }
