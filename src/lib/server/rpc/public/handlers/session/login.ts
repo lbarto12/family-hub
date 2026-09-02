@@ -7,15 +7,31 @@ export const Login = o
     .input(SessionLoginRequestSchema)
     .output(SessionBundleSchema)
     .handler(async ({ input, context }): Promise<SessionBundle> => {
-        const sessionBundle: SessionBundle = await SessionsAPI.login.Login(input);
+        const bundle: SessionBundle = await SessionsAPI.login.Login(input);
 
-        context.event.cookies.set("refresh", sessionBundle.refresh, {
+        context.event.cookies.set("refresh", bundle.refresh, {
             httpOnly: true,
-            secure: true,
+            secure: false,
             sameSite: "strict",
-            path: "/auth/refresh",
+            path: "/rpc/public/session",
             maxAge: 30 * 24 * 60 * 60 * 1000
         });
 
-        return sessionBundle;
+        return bundle;
+    });
+
+export const Refresh = o
+    .output(SessionBundleSchema)
+    .handler(async ({ context }): Promise<SessionBundle> => {
+        const bundle: SessionBundle = await SessionsAPI.login.Refresh(context);
+
+        context.event.cookies.set("refresh", bundle.refresh, {
+            httpOnly: true,
+            secure: false,
+            sameSite: "strict",
+            path: "/rpc/public/session",
+            maxAge: 30 * 24 * 60 * 60 * 1000
+        });
+
+        return bundle;
     });
