@@ -2,6 +2,7 @@
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import type { Snippet } from 'svelte';
+	import Toaster from '$lib/client/components/toasts/Toaster.svelte';
 
 	interface Props {
 		children: Snippet;
@@ -12,5 +13,6 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 <div>
+	<Toaster />
 	{@render children()}
 </div>

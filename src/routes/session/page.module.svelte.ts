@@ -1,3 +1,4 @@
+import { toast } from '$lib/client/components/toasts/toasts.svelte';
 import { API } from '$lib/client/linker.client';
 
 export interface Fields {
@@ -20,6 +21,10 @@ export const NewLoginPage = (): Fields => {
         } catch (e: unknown) {
             if (e instanceof Error) {
                 console.log(e.message);
+                toast({
+                    type: "error",
+                    message: e.message
+                });
             }
         }
     };
