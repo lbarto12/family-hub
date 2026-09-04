@@ -1,3 +1,5 @@
+import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
 import { toast } from '$lib/client/components/toasts/toasts.svelte';
 import { API } from '$lib/client/linker.client';
 
@@ -18,6 +20,7 @@ export const NewLoginPage = (): Fields => {
                 password
             });
             API.setAccessToken(access);
+            await goto(resolve("/dashboard"));
         } catch (e: unknown) {
             if (e instanceof Error) {
                 toast({
