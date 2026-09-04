@@ -20,7 +20,6 @@ export const NewLoginPage = (): Fields => {
             API.setAccessToken(access);
         } catch (e: unknown) {
             if (e instanceof Error) {
-                console.log(e.message);
                 toast({
                     type: "error",
                     message: e.message
