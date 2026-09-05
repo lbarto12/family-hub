@@ -6,6 +6,7 @@ import { getFirst, ValueNotFound } from '../utils';
 import {
 	issueRefreshToken,
 	rotateRefreshToken,
+	revokeFamilyByToken,
 	signAccessToken,
 	type IssuedRefreshToken,
 	type RotateResult
@@ -67,4 +68,11 @@ export const Refresh = async (context: PublicORPCContext): Promise<SessionBundle
 		access: access,
 		refresh: result.raw
 	};
+};
+
+export const Logout = async (context: PublicORPCContext): Promise<undefined> => {
+	const raw: string | undefined = context.event.cookies.get('refresh');
+	if (!raw) return;
+
+	await revokeFamilyByToken(raw);
 };

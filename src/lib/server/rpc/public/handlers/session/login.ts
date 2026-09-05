@@ -38,3 +38,9 @@ export const Refresh = o
 
 		return bundle;
 	});
+
+export const Logout = o.handler(async ({ context }): Promise<undefined> => {
+	await SessionsAPI.login.Logout(context);
+
+	context.event.cookies.delete('refresh', { path: '/rpc/public/session' });
+});

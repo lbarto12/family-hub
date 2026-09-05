@@ -5,9 +5,12 @@ import type { RequestEvent } from '@sveltejs/kit';
 import type { JWTPayload } from 'jose';
 
 export interface PrivateORPCContext {
+	event: RequestEvent;
+}
+
+export interface AuthedORPCContext extends PrivateORPCContext {
 	userID: string;
 	role: Role;
-	event: RequestEvent;
 }
 
 const base = os.$context<PrivateORPCContext>();
@@ -48,7 +51,7 @@ export const authed = o.use(async ({ context, next }) => {
 	return next({
 		context: {
 			userID,
-			role: parseRole(token),
+			role: parseRole(payload.role),
 			event: context.event
 		}
 	});

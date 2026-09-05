@@ -135,6 +135,9 @@ export default defineConfig(
 		files: ['scripts/**/*.ts'],
 		...ts.configs.disableTypeChecked,
 		rules: {
+			// Spread first: an explicit `rules` key replaces the spread config's
+			// own rules, which would leave the typed rules on with no type info
+			...ts.configs.disableTypeChecked.rules,
 			'@typescript-eslint/no-floating-promises': 'off',
 			'@typescript-eslint/no-misused-promises': 'off'
 		}
