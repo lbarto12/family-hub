@@ -13,6 +13,7 @@ import { db } from '$lib/server/db';
 import { getFirst } from '../utils';
 import type { db as DB } from '$lib/server/db';
 import { and, eq, gt } from 'drizzle-orm';
+import type { Role } from '$lib/types/rpcs/private/users/users';
 type Executor = typeof DB | Parameters<Parameters<typeof DB.transaction>[0]>[0];
 
 if (!JWT_SECRET || !JWT_ISSUER || !JWT_AUDIENCE || !JWT_ACCESS_TOKEN_TTL || !REFRESH_TOKEN_TTL_DAYS)
@@ -29,8 +30,8 @@ export const hashRefreshToken = (raw: string): string => {
 	return crypto.createHash('sha256').update(raw).digest('hex');
 };
 
-export const signAccessToken = (userID: string): Promise<string> => {
-	return new SignJWT({})
+export const signAccessToken = (userID: string, role: Role): Promise<string> => {
+	return new SignJWT({ role })
 		.setProtectedHeader({ alg: 'HS256' })
 		.setSubject(userID)
 		.setIssuedAt()

@@ -34,7 +34,7 @@ export const Login = async (input: SessionLoginRequest): Promise<SessionBundle> 
 		});
 	}
 
-	const accessToken: string = await signAccessToken(user.id);
+	const accessToken: string = await signAccessToken(user.id, user.role);
 	const refreshToken: IssuedRefreshToken = await issueRefreshToken(user.id, undefined);
 
 	return {
@@ -55,7 +55,13 @@ export const Refresh = async (context: PublicORPCContext): Promise<SessionBundle
 		throw new ORPCError('UNAUTHORIZED', { message: 'invalid refresh token' });
 	}
 
-	const access: string = await signAccessToken(result.userID);
+	const user: User = await db
+		.select()
+		.from(users)
+		.where(eq(users.id, result.userID))
+		.then(getFirst);
+
+	const access: string = await signAccessToken(result.userID, user.role);
 
 	return {
 		access: access,
