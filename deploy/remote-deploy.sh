@@ -187,7 +187,16 @@ APP_GROUP="$(id -gn)"
 # Explicitly in /tmp so it matches the path pattern in the sudoers rule.
 rendered="$(mktemp /tmp/family-hub-unit.XXXXXX)"
 trap 'rm -f "$rendered"' EXIT
+# ProtectHome=read-only hides nothing we need when APP_DIR is in /opt, but if the
+# release lives under a home directory the unit must not restrict it — snap
+# docker forces exactly that layout.
+protect_home=read-only
+case "$APP_DIR" in
+	/home/* | /root/*) protect_home=no ;;
+esac
+
 sed \
+	-e "s|@PROTECT_HOME@|$protect_home|g" \
 	-e "s|@APP_DIR@|$APP_DIR|g" \
 	-e "s|@APP_USER@|$APP_USER|g" \
 	-e "s|@APP_GROUP@|$APP_GROUP|g" \

@@ -198,6 +198,24 @@ sudo systemctl restart family-hub
 A deploy whose health check fails rolls itself back to the previous release and
 fails the workflow, so a bad build does not take the app down.
 
+## Snap-packaged docker
+
+Docker installed from a snap is confined and cannot read files outside `$HOME`.
+It reports such a file as "no such file or directory" even when it exists and is
+world-readable, so `docker compose -f /opt/family-hub/compose.yaml` fails in a
+way that looks like a missing file.
+
+If `command -v docker` prints something under `/snap/`, either replace it with
+your distro's packages, or set the `APP_DIR` repository variable to a path under
+the deploy user's home directory and re-run bootstrap with it:
+
+```sh
+APP_DIR=$HOME/family-hub ./deploy/bootstrap.sh
+```
+
+The deploy script drops `ProtectHome` from the systemd unit automatically when
+`APP_DIR` is under `/home`, so the service can still read its own release.
+
 ## Notes
 
 - The app binds `127.0.0.1` only. `tailscale serve` terminates TLS in front of

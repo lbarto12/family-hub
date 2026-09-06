@@ -73,6 +73,24 @@ docker info >/dev/null 2>&1 || die "cannot talk to docker as $(id -un).
   Fix with:  sudo usermod -aG docker $(id -un)   then log out and back in."
 log "docker reachable as $(id -un)"
 
+# Snap-packaged docker is confined to $HOME. It reports any file outside that as
+# "no such file or directory", so a compose file in /opt looks missing to it
+# while being perfectly readable to everything else.
+DOCKER_BIN="$(command -v docker)"
+if [[ "$DOCKER_BIN" == /snap/* ]] || [[ -e /snap/bin/docker ]]; then
+	warn "docker is installed as a snap ($DOCKER_BIN)."
+	warn "Snap confinement means it cannot read files outside \$HOME, so APP_DIR"
+	warn "must live under the deploy user's home directory. Either:"
+	warn "  - replace it with your distro's packages (recommended), or"
+	warn "  - set APP_DIR to something like $HOME/family-hub"
+	if [[ "$APP_DIR" != "$HOME"/* ]]; then
+		warn ""
+		warn "APP_DIR is currently $APP_DIR, which snap docker cannot read."
+		warn "Re-run with:  APP_DIR=$HOME/family-hub ./deploy/bootstrap.sh"
+		warn "and set the APP_DIR repository variable to the same path."
+	fi
+fi
+
 # The workflow reaches this machine over SSH, so sshd has to be running and
 # enabled at boot. The unit is called sshd on Arch/Fedora/RHEL and ssh on Debian.
 sshd_unit=""
