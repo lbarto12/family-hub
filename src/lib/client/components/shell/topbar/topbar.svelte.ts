@@ -7,20 +7,15 @@ import type { UserResponse } from '$lib/types/rpcs/private/users/users';
 export interface Fields {
 	readonly user: UserResponse | null;
 	readonly initials: string;
-	readonly menuOpen: boolean;
 	readonly profileOpen: boolean;
-	toggleMenu: () => undefined;
 	toggleProfile: () => undefined;
-	closeMenu: () => undefined;
 	closeProfile: () => undefined;
-	close: () => undefined;
 	profile: () => Promise<undefined>;
 	signOut: () => Promise<undefined>;
 }
 
-export const NewNavbar = (): Fields => {
+export const NewTopbar = (): Fields => {
 	let user: UserResponse | null = $state(null);
-	let menuOpen: boolean = $state(false);
 	let profileOpen: boolean = $state(false);
 
 	const initials: string = $derived.by((): string => {
@@ -41,38 +36,21 @@ export const NewNavbar = (): Fields => {
 		}
 	};
 
-	// The two dropdowns are mutually exclusive so a burger menu left open on a
-	// narrow screen cannot sit underneath the profile menu
-	const toggleMenu = (): undefined => {
-		menuOpen = !menuOpen;
-		profileOpen = false;
-	};
-
 	const toggleProfile = (): undefined => {
 		profileOpen = !profileOpen;
-		menuOpen = false;
-	};
-
-	const closeMenu = (): undefined => {
-		menuOpen = false;
 	};
 
 	const closeProfile = (): undefined => {
 		profileOpen = false;
 	};
 
-	const close = (): undefined => {
-		menuOpen = false;
-		profileOpen = false;
-	};
-
 	const profile = async (): Promise<undefined> => {
-		close();
+		closeProfile();
 		await goto(resolve('/profile'));
 	};
 
 	const signOut = async (): Promise<undefined> => {
-		close();
+		closeProfile();
 
 		try {
 			await API.public.session.login.Logout();
@@ -98,17 +76,11 @@ export const NewNavbar = (): Fields => {
 		get initials() {
 			return initials;
 		},
-		get menuOpen() {
-			return menuOpen;
-		},
 		get profileOpen() {
 			return profileOpen;
 		},
-		toggleMenu,
 		toggleProfile,
-		closeMenu,
 		closeProfile,
-		close,
 		profile,
 		signOut
 	};

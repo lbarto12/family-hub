@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Navbar from '$lib/client/components/navbar/Navbar.svelte';
+	import Shell from '$lib/client/components/shell/Shell.svelte';
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -9,7 +9,4 @@
 	let { children }: Props = $props();
 </script>
 
-<div>
-	<Navbar />
-	{@render children()}
-</div>
+<Shell>{@render children()}</Shell>
