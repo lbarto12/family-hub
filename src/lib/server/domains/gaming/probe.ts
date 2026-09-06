@@ -57,7 +57,6 @@ const parseBlock = (block: string): Map<string, string> => {
 	return fields;
 };
 
-/** systemd writes "[not set]" or "infinity" where a counter is unavailable */
 const num = (value: string | undefined): number | null => {
 	if (value === undefined || value === '' || value === '[not set]' || value === 'infinity') {
 		return null;

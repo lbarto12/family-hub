@@ -14,8 +14,6 @@ interface Runtime {
 	lastError: string | null;
 }
 
-// Held on globalThis so vite's HMR cannot leave a second interval behind on
-// every reload of this module in dev
 const KEY = Symbol.for('family-hub.gaming.poller');
 const globals = globalThis as typeof globalThis & { [KEY]?: Runtime };
 
@@ -29,7 +27,6 @@ const runtime: Runtime = (globals[KEY] ??= {
 	lastError: null
 });
 
-/** An unreachable host still gets a row, so downtime is recorded rather than absent */
 const toRow = (
 	slug: GameServerSlug,
 	unit: string,
@@ -70,13 +67,11 @@ const toRow = (
 };
 
 const poll = async (): Promise<undefined> => {
-	// A probe slower than the interval must not stack up behind itself
 	if (runtime.inFlight) return;
 	runtime.inFlight = true;
 
 	try {
 		const result: ProbeResult = await Probe();
-		// One timestamp for the whole poll, so a poll can be reassembled exactly
 		const recordedAt = new Date();
 
 		const rows: NewServerSnapshot[] = GAME_SERVERS.map((server): NewServerSnapshot =>

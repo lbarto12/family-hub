@@ -9,7 +9,6 @@ import {
 } from '$lib/types/rpcs/private/gaming/servers';
 import { sql } from 'drizzle-orm';
 
-/** Window length and bucket width per range, chosen for ~60-290 points a chart */
 const RANGES: Record<HistoryRange, { windowSeconds: number; bucketSeconds: number }> = {
 	hour: { windowSeconds: 60 * 60, bucketSeconds: 60 },
 	day: { windowSeconds: 24 * 60 * 60, bucketSeconds: 5 * 60 },
@@ -42,11 +41,6 @@ export const ForService = async (
 	const { windowSeconds, bucketSeconds } = RANGES[range];
 	const to = new Date();
 	const from = new Date(to.getTime() - windowSeconds * 1_000);
-	// postgres-js cannot bind a Date through sql.execute — it wants a string — so
-	// the window bound crosses as ISO text and is cast back in the query
-
-	// Aggregated in postgres rather than in the process: a month of 5s samples is
-	// ~500k rows per service, and only the buckets need to cross the wire
 	const aggregated = (await db.execute(sql`
 		SELECT
 			to_timestamp(
@@ -64,7 +58,6 @@ export const ForService = async (
 		ORDER BY 1
 	`)) as unknown as Record<string, unknown>[];
 
-	// A restart is a sample that is up where the one before it was down
 	const restartRows = (await db.execute(sql`
 		SELECT count(*)::int AS restarts
 		FROM (

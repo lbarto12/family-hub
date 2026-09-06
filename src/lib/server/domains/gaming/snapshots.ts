@@ -13,7 +13,6 @@ export const Insert = async (rows: NewServerSnapshot[]): Promise<undefined> => {
 	await db.insert(serverSnapshots).values(rows);
 };
 
-/** Newest row per service, for a process that has not polled yet */
 export const Latest = async (): Promise<Map<GameServerSlug, ServerSnapshot>> => {
 	const entries = await Promise.all(
 		GAME_SERVERS.map(async (server): Promise<[GameServerSlug, ServerSnapshot | undefined]> => [
@@ -33,10 +32,6 @@ export const Latest = async (): Promise<Map<GameServerSlug, ServerSnapshot>> => 
 	return latest;
 };
 
-/**
- * Drops rows past the retention window. No .returning(): a first sweep after a
- * shortened window can span millions of rows, and none of them need to come back.
- */
 export const Sweep = async (now: Date = new Date()): Promise<number> => {
 	const cutoff = new Date(now.getTime() - gamingConfig.retentionDays * 24 * 60 * 60 * 1_000);
 	const result = await db.delete(serverSnapshots).where(lt(serverSnapshots.recordedAt, cutoff));

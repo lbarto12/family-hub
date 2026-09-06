@@ -31,10 +31,6 @@ const UNPOLLED: Reading = {
 	recordedAt: null
 };
 
-/**
- * The poller's in-memory reading is the live one; the newest persisted row is
- * the fallback for a process that has just booted, or one with polling off.
- */
 export const All = async (): Promise<ServerStatusList> => {
 	const snapshot = Snapshot();
 	const persisted = snapshot.latest.size === 0 ? await Latest() : null;
