@@ -59,6 +59,7 @@
 	<div class="navbar-center hidden lg:flex">
 		<ul class="menu menu-horizontal gap-1 px-1">
 			<!-- navigation options go here -->
+			<a class="btn btn-primary" href={resolve('/dashboard/gaming')}>Gaming</a>
 		</ul>
 	</div>
 
