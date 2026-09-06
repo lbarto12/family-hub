@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_DB: local
+      POSTGRES_DB: familyhubdev
     volumes:
       - ./src/lib/server/db/migrations:/docker-entrypoint-initdb.d:ro
       - pgdata:/var/lib/postgresql
