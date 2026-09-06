@@ -112,9 +112,16 @@
 		{/if}
 	</figcaption>
 
-	<div class="relative w-full {accent}" bind:clientWidth={width}>
+	<!--
+		The svg is measured from this box and sized in pixels, so it must not be able
+		to push the box wider in turn: in flow that feedback loop ratchets one way and
+		the chart never shrinks back when the window does. Out of flow it can only
+		follow the box.
+	-->
+	<div class="relative w-full {accent}" style="height: {height}px" bind:clientWidth={width}>
 		{#if width > 0}
 			<svg
+				class="absolute inset-0"
 				{width}
 				{height}
 				role="img"

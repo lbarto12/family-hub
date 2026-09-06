@@ -9,7 +9,14 @@
 
 	let { buckets, formatTime, height = 44 }: Props = $props();
 
+	let width: number = $state(0);
 	let hovered: number | null = $state(null);
+
+	// At 288 buckets a 2px spacer is wider than the segment it separates, turning
+	// the bar into a hatch pattern — drop the spacers once they stop helping
+	const dense: boolean = $derived(buckets.length > 120);
+	const gap: number = $derived(dense ? 0 : 2);
+	const radius: number = $derived(dense ? 0 : 2);
 
 	// Status, not category: four reserved states, each also named in the legend
 	const stateOf = (uptime: number | null): { fill: string; label: string } => {
@@ -19,11 +26,44 @@
 		return { fill: 'fill-warning', label: 'partial' };
 	};
 
-	// At 288 buckets a 2px spacer is wider than the segment it separates, turning
-	// the bar into a hatch pattern — drop the spacers once they stop helping
-	const dense: boolean = $derived(buckets.length > 120);
+	/**
+	 * Snapped to whole pixels. Laying this out as one flex box per bucket leaves
+	 * every edge on a fraction of a pixel, and the antialiasing seams between 289
+	 * of them read as a hatch even with no gap between them at all.
+	 */
+	const segments: { bucket: StripBucket; x: number; w: number }[] = $derived.by(() => {
+		const count = buckets.length;
+		if (count === 0 || width <= 0) return [];
+
+		return buckets.map((bucket, index): { bucket: StripBucket; x: number; w: number } => {
+			const from = Math.round((index * width) / count);
+			const to = Math.round(((index + 1) * width) / count);
+			return { bucket, x: from, w: Math.max(1, to - from - gap) };
+		});
+	});
+
+	const move = (event: PointerEvent): undefined => {
+		const bounds =
+			event.currentTarget instanceof Element ? event.currentTarget.getBoundingClientRect() : null;
+		if (!bounds || buckets.length === 0 || bounds.width <= 0) return;
+
+		const ratio = (event.clientX - bounds.left) / bounds.width;
+		hovered = Math.min(buckets.length - 1, Math.max(0, Math.floor(ratio * buckets.length)));
+	};
+
+	const leave = (): undefined => {
+		hovered = null;
+	};
 
 	const active: StripBucket | null = $derived(hovered === null ? null : (buckets[hovered] ?? null));
+
+	const summary: string = $derived.by(() => {
+		const known = buckets.filter((b): boolean => b.uptime !== null);
+		if (known.length === 0) return 'Uptime by time bucket: no data recorded';
+
+		const mean = known.reduce((sum, b): number => sum + (b.uptime ?? 0), 0) / known.length;
+		return `Uptime by time bucket: ${formatPercent(mean)} across ${String(known.length)} buckets`;
+	});
 </script>
 
 <figure class="flex flex-col gap-2">
@@ -38,34 +78,35 @@
 		{/if}
 	</figcaption>
 
-	<!-- One flex cell per bucket, so segments stay even at any width and the 2px
-	     gap between them comes from the layout rather than from geometry maths -->
+	<!-- Absolutely positioned, so the measured svg can never widen the box it is
+	     measured from and ratchet the page into a horizontal scroll -->
 	<div
-		class="flex w-full {dense ? 'gap-0' : 'gap-[2px]'}"
+		class="relative w-full"
 		style="height: {height}px"
-		role="group"
-		aria-label="Uptime by time bucket"
-		onpointerleave={() => (hovered = null)}
+		bind:clientWidth={width}
+		onpointermove={move}
+		onpointerleave={leave}
+		role="img"
+		aria-label={summary}
 	>
-		{#each buckets as bucket, index (bucket.start.getTime())}
-			{@const status = stateOf(bucket.uptime)}
+		{#if width > 0}
+			<svg class="absolute inset-0" {width} {height} aria-hidden="true">
+				{#each segments as segment, index (segment.bucket.start.getTime())}
+					{@const status = stateOf(segment.bucket.uptime)}
 
-			<button
-				type="button"
-				class="min-w-0 flex-1 cursor-default p-0 transition-opacity {dense
-					? ''
-					: 'rounded-[2px]'} {hovered !== null && hovered !== index ? 'opacity-60' : ''}"
-				aria-label="{formatTime(bucket.start)}: {status.label}"
-				title="{formatTime(bucket.start)} — {status.label}"
-				onpointerenter={() => (hovered = index)}
-				onfocus={() => (hovered = index)}
-				onblur={() => (hovered = null)}
-			>
-				<svg class="h-full w-full" preserveAspectRatio="none" viewBox="0 0 1 1" aria-hidden="true">
-					<rect width="1" height="1" class={status.fill} />
-				</svg>
-			</button>
-		{/each}
+					<rect
+						x={segment.x}
+						y="0"
+						width={segment.w}
+						{height}
+						rx={radius}
+						class="{status.fill} {hovered !== null && hovered !== index ? 'opacity-60' : ''}"
+					>
+						<title>{formatTime(segment.bucket.start)} — {status.label}</title>
+					</rect>
+				{/each}
+			</svg>
+		{/if}
 	</div>
 
 	<!-- Identity never rests on colour alone -->

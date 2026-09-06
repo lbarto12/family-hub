@@ -39,12 +39,14 @@
 
 <div class="flex flex-col gap-6 px-6 py-8">
 	<div class="flex flex-wrap items-center justify-between gap-4">
-		<div class="flex items-center gap-4">
+		<!-- The inner group needs its own wrap: without it the back link, title and
+		     badge hold a fixed width open and scroll the whole page sideways -->
+		<div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
 			<a class="btn btn-ghost btn-sm" href={resolve('/dashboard/gaming')}>← Servers</a>
 
-			<div class="flex items-center gap-3">
-				<GameIcon slug={state.slug} class="size-9 text-base-content/80" />
-				<h1 class="text-2xl font-semibold">{state.label}</h1>
+			<div class="flex min-w-0 items-center gap-3">
+				<GameIcon slug={state.slug} class="size-9 shrink-0 text-base-content/80" />
+				<h1 class="truncate text-2xl font-semibold">{state.label}</h1>
 			</div>
 
 			{#if state.status}
@@ -61,20 +63,24 @@
 			{/if}
 		</div>
 
-		<!-- Filters sit in one row above the charts -->
-		<div class="join">
-			{#each HISTORY_RANGES as range (range)}
-				<button
-					type="button"
-					class="btn join-item btn-sm {state.range === range ? 'btn-active' : ''}"
-					aria-pressed={state.range === range}
-					onclick={() => {
-						state.setRange(range);
-					}}
-				>
-					{RANGE_LABELS[range]}
-				</button>
-			{/each}
+		<!-- Filters sit in one row above the charts. A joined button group cannot
+		     wrap, so when the panel is open on a narrow screen this row scrolls
+		     inside itself rather than dragging the whole page sideways -->
+		<div class="max-w-full overflow-x-auto">
+			<div class="join">
+				{#each HISTORY_RANGES as range (range)}
+					<button
+						type="button"
+						class="btn join-item btn-sm {state.range === range ? 'btn-active' : ''}"
+						aria-pressed={state.range === range}
+						onclick={() => {
+							state.setRange(range);
+						}}
+					>
+						{RANGE_LABELS[range]}
+					</button>
+				{/each}
+			</div>
 		</div>
 	</div>
 
