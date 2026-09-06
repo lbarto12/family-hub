@@ -27,6 +27,7 @@ write app.env            ──ssh───▶     /opt/family-hub/app.env   (06
 | -------------------- | ----------------------------------------------------------------- |
 | `bootstrap.sh`       | One-time machine setup. Prints every secret the workflow needs.   |
 | `remote-deploy.sh`   | Runs on the machine on every deploy. Idempotent, safe to re-run.  |
+| `with-env.sh`        | Runs a command with `app.env` loaded, for admin tasks.            |
 | `compose.yaml`       | Production postgres. Bound to loopback only.                      |
 | `family-hub.service` | systemd unit template; `@PLACEHOLDERS@` filled in at deploy time. |
 
@@ -173,6 +174,10 @@ are decoded correctly.
 sitting next to the compose file and interpolates `${...}` out of its values,
 which mangles secrets containing a `$`.
 
+Never `source` `app.env` — the shell expands `$` and backticks inside the values,
+so a password of `pa$$word` silently becomes the shell's PID. Use `with-env.sh`,
+which parses and unescapes the file instead.
+
 The five most recent releases are kept; `current` is a symlink, so activation and
 rollback are atomic.
 
@@ -187,7 +192,7 @@ docker compose -f /opt/family-hub/compose.yaml -p family-hub ps
 docker compose -f /opt/family-hub/compose.yaml -p family-hub logs -f
 
 # create the first admin user (needs a terminal — it prompts)
-cd /opt/family-hub/current && bun run db:admin
+cd /opt/family-hub/current && ./deploy/with-env.sh bun run db:admin
 
 # roll back by hand
 ln -sfn /opt/family-hub/releases/<older-sha> /opt/family-hub/current.tmp
