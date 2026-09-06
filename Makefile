@@ -2,7 +2,7 @@
 
 run:
 	@echo "Starting App..."
-	bun --bun run dev --port 5888
+	bun --bun run dev --host --port 5888
 	@echo "App Terminated."
 
 format:

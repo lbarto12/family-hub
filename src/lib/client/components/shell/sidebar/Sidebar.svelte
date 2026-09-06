@@ -11,7 +11,7 @@
 	horizontal padding: the icons hold their column whether the panel is open or shut
 -->
 <aside
-	class="sticky top-0 flex h-screen shrink-0 flex-col overflow-x-hidden border-r border-base-300 bg-base-100 transition-[width] duration-200 ease-out {state.open
+	class="sticky top-0 flex h-[100dvh] shrink-0 flex-col overflow-x-hidden border-r border-base-300 bg-base-100 transition-[width] duration-200 ease-out {state.open
 		? 'w-60'
 		: 'w-16'}"
 >

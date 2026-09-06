@@ -28,7 +28,12 @@
 	</div>
 
 	<div class="navbar-end">
-		<div class="dropdown dropdown-end" bind:this={profile}>
+		<!--
+			dropdown-open is load-bearing: daisyUI hides .dropdown-content unless the
+			dropdown is :focus-within, and iOS Safari does not focus a button when you
+			tap it — so on a phone the menu rendered but stayed display:none.
+		-->
+		<div class="dropdown dropdown-end" class:dropdown-open={state.profileOpen} bind:this={profile}>
 			<button
 				type="button"
 				class="btn avatar avatar-placeholder btn-circle btn-ghost"
