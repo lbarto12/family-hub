@@ -9,7 +9,6 @@ services:
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: familyhubdev
     volumes:
-      - ./src/lib/server/db/migrations:/docker-entrypoint-initdb.d:ro
       - pgdata:/var/lib/postgresql
 volumes:
   pgdata:

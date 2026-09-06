@@ -181,6 +181,38 @@ which parses and unescapes the file instead.
 The five most recent releases are kept; `current` is a symlink, so activation and
 rollback are atomic.
 
+## Game server polling
+
+The app polls the game servers' systemd units over the tailnet every 5 seconds
+and stores a snapshot per service per poll, sweeping rows past 90 days. Two
+things on the machine have to be true for it to work:
+
+1. **The service can reach tailscaled.** `ProtectSystem=strict` mounts `/run`
+   read-only, and connecting to a unix socket needs write access, so
+   `family-hub.service` carries `ReadWritePaths=/run/tailscale`. Without it every
+   poll fails with a permission error.
+2. **The deploy user is a tailscale operator**, or `tailscale ssh` refuses to run
+   as a non-root user:
+
+   ```sh
+   sudo tailscale set --operator=$USER
+   ```
+
+Check it end to end from the machine, as the deploy user:
+
+```sh
+tailscale ssh user@gaming 'systemctl show minecraft.service --property=ActiveState'
+```
+
+Everything is tunable through `app.env` — target host, SSH binary and arguments,
+poll interval and retention. See `.env.example` for the full list; the defaults
+assume `tailscale ssh user@gaming`. Set `GAME_POLL_ENABLED=false` to run the app
+without polling at all.
+
+The poller is per-process, so it assumes the single systemd service that this
+deploy installs. Running a second instance against the same database would
+double every snapshot.
+
 ## Operating it
 
 ```sh

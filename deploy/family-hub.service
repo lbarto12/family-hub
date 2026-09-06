@@ -30,13 +30,19 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=family-hub
 
-# Hardening. The app only needs to read its release dir and reach loopback
-# postgres, so take everything else away.
+# Hardening. The app needs its release dir, loopback postgres, and the local
+# tailscaled socket for the game-server poller — take everything else away.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=@PROTECT_HOME@
 ReadWritePaths=@APP_DIR@
+# The gaming poller shells out to `tailscale ssh`, which connects to
+# /run/tailscale/tailscaled.sock. ProtectSystem=strict mounts /run read-only and
+# connecting to a unix socket needs write access, so the poller would fail with
+# a permission error without this. The deploy user must also be a tailscale
+# operator:  sudo tailscale set --operator=$USER
+ReadWritePaths=/run/tailscale
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
