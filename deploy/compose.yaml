@@ -1,0 +1,33 @@
+# Production database for the backroom machine.
+#
+# Deployed to $APP_DIR/compose.yaml and driven by deploy/remote-deploy.sh, which
+# derives the POSTGRES_* values below from DATABASE_URL in $APP_DIR/.env.
+#
+# Unlike the dev compose at the repo root this does not mount the drizzle
+# migrations into docker-entrypoint-initdb.d — those run only on first init and
+# would drift from the journal. Migrations are applied by scripts/migrate.ts on
+# every deploy instead.
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    # Bound to loopback: the app runs on the host, and nothing on the tailnet
+    # has any business talking to postgres directly.
+    ports:
+      - 127.0.0.1:5432:5432
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      # postgres 18+ wants the mount at /var/lib/postgresql, not .../data — it
+      # stores data in a major-version subdirectory so pg_upgrade --link works.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+volumes:
+  pgdata:

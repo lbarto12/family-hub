@@ -40,3 +40,13 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Deploying
+
+Pushing to `main` builds the app and deploys it to the backroom machine over the
+tailnet: artifacts are rsynced to `/opt/family-hub/releases/<sha>`, postgres comes
+up under docker compose, migrations run, and a `family-hub` systemd service is
+installed and restarted. A failed health check rolls back to the previous release.
+
+See [`deploy/README.md`](deploy/README.md) for the one-time machine setup and the
+list of repository secrets. Everything the deploy needs lives in `deploy/`.

@@ -1,0 +1,50 @@
+# Installed to /etc/systemd/system/family-hub.service by deploy/remote-deploy.sh.
+# @PLACEHOLDERS@ are substituted at deploy time — edit the template, not the
+# installed copy, or the next deploy will overwrite your changes.
+[Unit]
+Description=Family Hub (SvelteKit on Bun)
+Documentation=https://github.com/lbarto12/family-hub
+# The app talks to postgres in compose, so docker has to come up first.
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+# Never give up restarting: the DB can be slow to come back after a reboot.
+StartLimitIntervalSec=0
+StartLimitBurst=0
+
+[Service]
+Type=simple
+User=@APP_USER@
+Group=@APP_GROUP@
+WorkingDirectory=@APP_DIR@/current
+# EnvironmentFile carries DATABASE_URL, JWT_*, HOST, PORT and ORIGIN. It is
+# written by the deploy workflow from GitHub secrets and is mode 0600.
+# Not called ".env" so docker compose does not auto-load it — see compose.yaml.
+EnvironmentFile=@APP_DIR@/app.env
+ExecStart=@BUN@ --install=disable @APP_DIR@/current/build/index.js
+Restart=always
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=20
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=family-hub
+
+# Hardening. The app only needs to read its release dir and reach loopback
+# postgres, so take everything else away.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=@APP_DIR@
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+
+[Install]
+WantedBy=multi-user.target
