@@ -155,18 +155,28 @@ fi
 # ---------------------------------------------------------------------------
 # Tailscale serve
 # ---------------------------------------------------------------------------
-TS_HOST="$(tailscale status --json 2>/dev/null | grep -o '"DNSName":"[^"]*"' | head -1 | cut -d'"' -f4 | sed 's/\.$//')" || true
+# Self.DNSName is the first DNSName in the JSON. Note the whitespace after the
+# colon — Go pretty-prints as `"DNSName": "value"`, so the pattern has to allow
+# it, and the name comes back with a trailing dot.
+TS_HOST="$(tailscale status --json 2>/dev/null \
+	| grep -om1 '"DNSName"[[:space:]]*:[[:space:]]*"[^"]*"' \
+	| sed -e 's/.*:[[:space:]]*"//' -e 's/"$//' -e 's/\.$//')" || true
+
 if [[ -z "${TS_HOST:-}" ]]; then
 	warn "Could not read this machine's tailnet name — is tailscale up? Run: sudo tailscale up"
 	TS_HOST="<machine>.<tailnet>.ts.net"
 else
 	log "Tailnet name: $TS_HOST"
-	if tailscale serve status 2>/dev/null | grep -q "127.0.0.1:$APP_PORT"; then
-		log "tailscale serve already fronting 127.0.0.1:$APP_PORT"
-	else
-		log "Pointing tailscale serve at 127.0.0.1:$APP_PORT"
-		tailscale serve --bg "$APP_PORT" || warn "tailscale serve failed; run it yourself: tailscale serve --bg $APP_PORT"
-	fi
+fi
+
+# Independent of the name lookup: serve still needs setting up even if the name
+# could not be read.
+if tailscale serve status 2>/dev/null | grep -q "127.0.0.1:$APP_PORT"; then
+	log "tailscale serve already fronting 127.0.0.1:$APP_PORT"
+else
+	log "Pointing tailscale serve at 127.0.0.1:$APP_PORT"
+	tailscale serve --bg "$APP_PORT" \
+		|| warn "tailscale serve failed; run it yourself: tailscale serve --bg $APP_PORT"
 fi
 
 # ---------------------------------------------------------------------------
@@ -206,11 +216,19 @@ postgres keeps the credentials from first init, so changing the password later
 means changing it in the running database too.
 
 Also create an OAuth client at https://login.tailscale.com/admin/settings/oauth
-with the "Devices > Core" write scope and the tag:ci tag, and make sure tag:ci
-is allowed to reach this machine on port 22 in your tailnet ACL, e.g.
+with the "Keys > Auth Keys > Write" scope and the tag:ci tag. The action trades
+those credentials for an ephemeral auth key, so auth_keys is the scope it needs
+— not Devices. tag:ci has to exist in your policy file before the tag picker
+will offer it, and it has to be allowed to reach this machine on port 22:
 
-  "acls": [
-    { "action": "accept", "src": ["tag:ci"], "dst": ["$TS_HOST:22"] }
+  "tagOwners": {
+    "tag:ci": ["autogroup:owner"]
+  },
+  "hosts": {
+    "$(hostname -s)": "$(tailscale ip -4 2>/dev/null || echo '<tailscale-ip>')"
+  },
+  "grants": [
+    { "src": ["tag:ci"], "dst": ["$(hostname -s)"], "ip": ["tcp:22"] }
   ]
 
 Then push to main.

@@ -1,0 +1,230 @@
+name: Deploy
+
+# Builds the app on the runner, joins the tailnet, ships the release to the
+# backroom machine and restarts the systemd service there.
+#
+# One-time machine setup lives in deploy/bootstrap.sh; it prints every secret
+# this workflow expects.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys race for the same release directory.
+concurrency:
+  group: deploy-backroom
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      APP_DIR: ${{ secrets.APP_DIR || '/opt/family-hub' }}
+      APP_PORT: ${{ secrets.APP_PORT || '3000' }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      RELEASE: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Keep this in step with the bun on the backroom machine.
+          bun-version: '1.4.0'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run check
+
+      - name: Unit tests
+        # Server project only — the client project drives a real browser and
+        # would mean downloading playwright on every deploy.
+        run: bunx vitest run --project server
+
+      - name: Build
+        run: bun run build
+
+      - name: Stage release
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          # build/ is the server; src/ comes along so migrations and the
+          # create-admin script can run on the machine; deploy/ carries the
+          # compose file and the systemd unit template.
+          cp -r build src scripts deploy release/
+          cp package.json bun.lock drizzle.config.ts release/
+          du -sh release
+
+      - name: Check deploy secrets
+        env:
+          # Through env rather than ${{ }} interpolation, so a secret containing
+          # a quote can never break out into the script.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in DEPLOY_HOST DEPLOY_USER DATABASE_URL JWT_SECRET DEPLOY_SSH_KEY; do
+            [[ -n "${!name:-}" ]] || missing+=("$name")
+          done
+          # Tailscale takes either an OAuth credential or a plain auth key.
+          if [[ -z "${TS_AUTHKEY:-}" ]] \
+            && { [[ -z "${TS_OAUTH_CLIENT_ID:-}" ]] || [[ -z "${TS_OAUTH_SECRET:-}" ]]; }; then
+            missing+=("TS_AUTHKEY (or TS_OAUTH_CLIENT_ID + TS_OAUTH_SECRET)")
+          fi
+          if ((${#missing[@]})); then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            echo "Run deploy/bootstrap.sh on the machine — it prints all of them."
+            exit 1
+          fi
+
+      - name: Connect to tailnet
+        uses: tailscale/github-action@v3
+        with:
+          # Either an OAuth credential (preferred — it does not expire) or a
+          # plain auth key. Set whichever pair of secrets you have; the action
+          # uses the auth key only when no OAuth credential is given.
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          # The runner has to land on tag:ci or the tailnet grant will not match
+          # it and SSH is refused. An auth key must itself be tagged tag:ci.
+          tags: tag:ci
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [[ -n "$DEPLOY_SSH_KNOWN_HOSTS" ]]; then
+            printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            strict=yes
+          else
+            # The tailnet already authenticates both ends; pin the key on first
+            # contact. Set DEPLOY_SSH_KNOWN_HOSTS to pin it up front instead.
+            strict=accept-new
+          fi
+          chmod 600 ~/.ssh/known_hosts 2>/dev/null || true
+          cat >> ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName $DEPLOY_HOST
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking $strict
+            ServerAliveInterval 15
+            ConnectTimeout 20
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Wait for the machine
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 15); do
+            if ssh -o BatchMode=yes deploy-target true 2>/dev/null; then
+              echo "Reachable at $DEPLOY_HOST"
+              exit 0
+            fi
+            echo "Attempt $i: not reachable yet"
+            sleep 4
+          done
+          echo "::error::$DEPLOY_HOST is not reachable over the tailnet."
+          echo "Check that tag:ci is allowed to reach it on port 22 in your ACL."
+          exit 1
+
+      - name: Ship release
+        run: |
+          set -euo pipefail
+          ssh deploy-target "mkdir -p '$APP_DIR/releases/$RELEASE'"
+          # --exclude node_modules keeps --delete from wiping the deps that the
+          # remote script installs into the release directory.
+          rsync -az --delete --exclude node_modules \
+            -e ssh \
+            ./release/ "deploy-target:$APP_DIR/releases/$RELEASE/"
+
+      - name: Write environment file
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_ISSUER: ${{ secrets.JWT_ISSUER || 'family-hub-auth' }}
+          JWT_AUDIENCE: ${{ secrets.JWT_AUDIENCE || 'family-hub-app' }}
+          JWT_ACCESS_TOKEN_TTL: ${{ secrets.JWT_ACCESS_TOKEN_TTL || '15m' }}
+          REFRESH_TOKEN_TTL_DAYS: ${{ secrets.REFRESH_TOKEN_TTL_DAYS || '30' }}
+          APP_ORIGIN: ${{ secrets.APP_ORIGIN }}
+        run: |
+          set -euo pipefail
+
+          # Values are double-quoted with \ and " escaped. systemd's
+          # EnvironmentFile parser and the remote script's reader both
+          # understand exactly this, and neither expands $ or backticks.
+          esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+          put() { printf '%s="%s"\n' "$1" "$(esc "${2-}")" >> env.out; }
+
+          origin="${APP_ORIGIN:-}"
+          if [[ -z "$origin" ]]; then
+            echo "::warning::APP_ORIGIN is not set; falling back to https://$DEPLOY_HOST"
+            origin="https://$DEPLOY_HOST"
+          fi
+
+          : > env.out
+          printf '# Written by .github/workflows/deploy.yml — do not edit by hand.\n' >> env.out
+          printf '# Release %s\n' "$RELEASE" >> env.out
+          put NODE_ENV production
+          # Bound to loopback; tailscale serve is what faces the tailnet.
+          put HOST 127.0.0.1
+          put PORT "$APP_PORT"
+          put ORIGIN "$origin"
+          put DATABASE_URL "$DATABASE_URL"
+          put JWT_SECRET "$JWT_SECRET"
+          put JWT_ISSUER "$JWT_ISSUER"
+          put JWT_AUDIENCE "$JWT_AUDIENCE"
+          put JWT_ACCESS_TOKEN_TTL "$JWT_ACCESS_TOKEN_TTL"
+          put REFRESH_TOKEN_TTL_DAYS "$REFRESH_TOKEN_TTL_DAYS"
+
+          # Written 0600 and moved into place atomically, so a half-written file
+          # is never visible to the service.
+          # Named app.env, not .env: docker compose auto-loads a .env next to the
+          # compose file and would try to interpolate ${...} out of the secrets.
+          ssh deploy-target "umask 077; cat > '$APP_DIR/app.env.tmp' && mv -f '$APP_DIR/app.env.tmp' '$APP_DIR/app.env'" < env.out
+          rm -f env.out
+          echo "Wrote $APP_DIR/app.env ($(ssh deploy-target "wc -l < '$APP_DIR/app.env'") lines)"
+
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          ssh deploy-target \
+            "APP_DIR='$APP_DIR' RELEASE='$RELEASE' bash '$APP_DIR/releases/$RELEASE/deploy/remote-deploy.sh'"
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            echo "### Deployed :rocket:"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Release | \`$RELEASE\` |"
+            echo "| Machine | \`$DEPLOY_HOST\` |"
+            echo "| URL | ${{ secrets.APP_ORIGIN || format('https://{0}', secrets.DEPLOY_HOST) }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -202,6 +202,23 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Tailscale serve
+# ---------------------------------------------------------------------------
+# Re-asserted every deploy so a reset or a never-configured machine repairs
+# itself. `--bg` config survives reboots on its own, so this is normally a no-op.
+if command -v tailscale >/dev/null 2>&1; then
+	if tailscale serve status 2>/dev/null | grep -q "127.0.0.1:$PORT"; then
+		log "tailscale serve already fronting 127.0.0.1:$PORT"
+	else
+		log "Pointing tailscale serve at 127.0.0.1:$PORT"
+		tailscale serve --bg "$PORT" \
+			|| warn "tailscale serve failed; run it yourself: tailscale serve --bg $PORT"
+	fi
+else
+	warn "tailscale is not on PATH; skipping serve setup"
+fi
+
+# ---------------------------------------------------------------------------
 # Prune
 # ---------------------------------------------------------------------------
 log "Pruning old releases (keeping $KEEP_RELEASES)"

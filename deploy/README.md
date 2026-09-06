@@ -68,15 +68,39 @@ It creates `/opt/family-hub`, grants the deploy user a narrow sudo rule for this
 one service, generates an SSH key for the workflow, points `tailscale serve` at
 port 3000, and prints the secrets to paste into the repository.
 
-In the Tailscale admin console, create an OAuth client with the **Devices > Core**
-write scope and the `tag:ci` tag, then allow that tag to reach the machine on
-port 22:
+In the Tailscale admin console, create an OAuth client with the
+**Keys > Auth Keys > Write** scope and the `tag:ci` tag. The action trades those
+credentials for an ephemeral auth key, so `auth_keys` is the scope it needs —
+the `devices` scope no longer covers this.
+
+`tag:ci` has to exist in your policy file before the tag picker will offer it,
+and it needs to reach the machine on port 22. In the grants syntax the admin
+console now uses:
 
 ```json
 {
-	"acls": [{ "action": "accept", "src": ["tag:ci"], "dst": ["backroom:22"] }]
+	"tagOwners": {
+		"tag:ci": ["autogroup:owner"]
+	},
+	"hosts": {
+		"primary": "100.84.129.36"
+	},
+	"grants": [
+		{
+			"src": ["tag:ci"],
+			"dst": ["primary"],
+			"ip": ["tcp:22"]
+		}
+	]
 }
 ```
+
+`dst` takes a tag, group, host alias or IP — not a bare MagicDNS name — hence the
+`hosts` alias. The legacy equivalent, if your policy still uses `acls`, is
+`{ "action": "accept", "src": ["tag:ci"], "dst": ["primary:22"] }`.
+
+If your policy is still the default allow-all, `tag:ci` can already reach the
+machine and this grant is only a tightening, not a prerequisite.
 
 Then push to `main`.
 
