@@ -97,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for name in DEPLOY_HOST DEPLOY_USER DATABASE_URL JWT_SECRET DEPLOY_SSH_KEY; do
+          for name in DEPLOY_HOST DEPLOY_USER DATABASE_URL JWT_SECRET; do
             [[ -n "${!name:-}" ]] || missing+=("$name")
           done
           # Tailscale takes either an OAuth credential or a plain auth key.
@@ -131,8 +131,20 @@ jobs:
         run: |
           set -euo pipefail
           install -d -m 700 ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+
+          # DEPLOY_SSH_KEY is optional. With Tailscale SSH the runner is
+          # authenticated by its tailnet identity (tag:ci) and no key is used at
+          # all; it is only needed when plain sshd serves port 22.
+          identity=""
+          if [[ -n "$DEPLOY_SSH_KEY" ]]; then
+            printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            identity=$'    IdentityFile ~/.ssh/deploy_key\n    IdentitiesOnly yes'
+            echo "Using key authentication"
+          else
+            echo "No DEPLOY_SSH_KEY set — relying on Tailscale SSH identity"
+          fi
+
           if [[ -n "$DEPLOY_SSH_KNOWN_HOSTS" ]]; then
             printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
             strict=yes
@@ -146,8 +158,7 @@ jobs:
           Host deploy-target
             HostName $DEPLOY_HOST
             User $DEPLOY_USER
-            IdentityFile ~/.ssh/deploy_key
-            IdentitiesOnly yes
+          ${identity}
             StrictHostKeyChecking $strict
             ServerAliveInterval 15
             ConnectTimeout 20

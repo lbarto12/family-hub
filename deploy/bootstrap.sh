@@ -189,7 +189,7 @@ $(printf '\033[1;32mBootstrap complete.\033[0m')
 Add these to the repository at Settings > Secrets and variables > Actions.
 
   Secrets
-    DEPLOY_SSH_KEY        the private key below, in full
+    DEPLOY_SSH_KEY        only if Tailscale SSH is off — the key below, in full
     DEPLOY_HOST           $TS_HOST
     DEPLOY_USER           $DEPLOY_USER
     DATABASE_URL          postgres://<user>:<password>@127.0.0.1:5432/familyhub
@@ -216,7 +216,9 @@ postgres keeps the credentials from first init, so changing the password later
 means changing it in the running database too.
 
 Also create an OAuth client at https://login.tailscale.com/admin/settings/oauth
-with the "Keys > Auth Keys > Write" scope and the tag:ci tag. The action trades
+with the "Keys > Auth Keys > Write" scope and the tag:ci tag. If Tailscale SSH
+is enabled here (it intercepts port 22), the policy also needs an "ssh" rule and
+this machine must carry a tag — see deploy/README.md. The action trades
 those credentials for an ephemeral auth key, so auth_keys is the scope it needs
 — not Devices. tag:ci has to exist in your policy file before the tag picker
 will offer it, and it has to be allowed to reach this machine on port 22:

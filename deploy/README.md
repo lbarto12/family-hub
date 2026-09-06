@@ -73,34 +73,58 @@ In the Tailscale admin console, create an OAuth client with the
 credentials for an ephemeral auth key, so `auth_keys` is the scope it needs —
 the `devices` scope no longer covers this.
 
-`tag:ci` has to exist in your policy file before the tag picker will offer it,
-and it needs to reach the machine on port 22. In the grants syntax the admin
-console now uses:
+`tag:ci` has to exist in your policy file before the tag picker will offer it.
+
+Tailscale SSH intercepts port 22, so a network grant alone is not enough — an
+`ssh` rule is needed too. In an `ssh` rule the destination must be a **tag**
+whenever the source is a tag (`autogroup:self` only works when the source is
+users or groups), so the machine has to be tagged as well:
 
 ```json
 {
 	"tagOwners": {
-		"tag:ci": ["autogroup:owner"]
-	},
-	"hosts": {
-		"primary": "100.84.129.36"
+		"tag:ci": ["autogroup:owner"],
+		"tag:hub": ["autogroup:owner"]
 	},
 	"grants": [
 		{
 			"src": ["tag:ci"],
-			"dst": ["primary"],
+			"dst": ["tag:hub"],
 			"ip": ["tcp:22"]
+		}
+	],
+	"ssh": [
+		{
+			"action": "accept",
+			"src": ["tag:ci"],
+			"dst": ["tag:hub"],
+			"users": ["user"]
+		},
+		{
+			"action": "accept",
+			"src": ["autogroup:member"],
+			"dst": ["tag:hub"],
+			"users": ["autogroup:nonroot"]
 		}
 	]
 }
 ```
 
-`dst` takes a tag, group, host alias or IP — not a bare MagicDNS name — hence the
-`hosts` alias. The legacy equivalent, if your policy still uses `acls`, is
-`{ "action": "accept", "src": ["tag:ci"], "dst": ["primary:22"] }`.
+Then tag the machine under **Machines > (the machine) > Edit ACL tags** with
+`tag:hub`.
 
-If your policy is still the default allow-all, `tag:ci` can already reach the
-machine and this grant is only a tightening, not a prerequisite.
+The second `ssh` rule matters: tagging a device transfers it from user ownership
+to tag ownership, and `autogroup:self` stops matching it. Without that rule you
+lose your own SSH access to the machine. It is recoverable from the admin
+console, but easier not to trip over.
+
+`action` must be `accept`, not `check` — `check` demands periodic interactive
+re-authentication, which no unattended deploy can satisfy.
+
+Because Tailscale SSH authenticates the runner by its tailnet identity, no SSH
+private key is involved and `DEPLOY_SSH_KEY` can be left unset. Set it only if
+you turn Tailscale SSH off (`tailscale up --ssh=false`) and let plain sshd serve
+port 22.
 
 Then push to `main`.
 
@@ -112,7 +136,7 @@ Set under **Settings > Secrets and variables > Actions**.
 | -------------------- | ---------------------------------------------------- |
 | `DEPLOY_HOST`        | `backroom.tailXXXX.ts.net`                           |
 | `DEPLOY_USER`        | `liam`                                               |
-| `DEPLOY_SSH_KEY`     | the private key printed by `bootstrap.sh`            |
+| `DEPLOY_SSH_KEY`     | only when not using Tailscale SSH — see above        |
 | `TS_OAUTH_CLIENT_ID` | from the Tailscale admin console                     |
 | `TS_OAUTH_SECRET`    | from the Tailscale admin console                     |
 | `DATABASE_URL`       | `postgres://hub:<password>@127.0.0.1:5432/familyhub` |
