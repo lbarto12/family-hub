@@ -1,12 +1,6 @@
 import crypto from 'crypto';
 
-import {
-	JWT_SECRET,
-	JWT_ISSUER,
-	JWT_AUDIENCE,
-	JWT_ACCESS_TOKEN_TTL,
-	REFRESH_TOKEN_TTL_DAYS
-} from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose';
 import { refreshTokens, type RefreshToken } from '$lib/server/db/schemas';
 import { db } from '$lib/server/db';
@@ -15,6 +9,10 @@ import type { db as DB } from '$lib/server/db';
 import { and, eq, gt } from 'drizzle-orm';
 import type { Role } from '$lib/types/rpcs/private/users/users';
 type Executor = typeof DB | Parameters<Parameters<typeof DB.transaction>[0]>[0];
+
+// Read at runtime rather than inlined at build time, so the deployed service
+// picks these up from its EnvironmentFile and the build needs no secrets.
+const { JWT_SECRET, JWT_ISSUER, JWT_AUDIENCE, JWT_ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_DAYS } = env;
 
 if (!JWT_SECRET || !JWT_ISSUER || !JWT_AUDIENCE || !JWT_ACCESS_TOKEN_TTL || !REFRESH_TOKEN_TTL_DAYS)
 	throw Error('JWT_SECRET not set');

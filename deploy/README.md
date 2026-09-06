@@ -120,7 +120,7 @@ Set under **Settings > Secrets and variables > Actions**.
 | `APP_ORIGIN`         | `https://backroom.tailXXXX.ts.net`                   |
 
 Optional, with the defaults the workflow uses if unset: `JWT_ISSUER`
-(`family-hub--auth`), `JWT_AUDIENCE` (`family-hub-app`), `JWT_ACCESS_TOKEN_TTL`
+(`family-hub-auth`), `JWT_AUDIENCE` (`family-hub-app`), `JWT_ACCESS_TOKEN_TTL`
 (`15m`), `REFRESH_TOKEN_TTL_DAYS` (`30`), `APP_DIR` (`/opt/family-hub`),
 `APP_PORT` (`3000`), `DEPLOY_SSH_KNOWN_HOSTS` (pins the host key instead of
 trusting it on first contact).

@@ -55,6 +55,18 @@ jobs:
         run: bunx vitest run --project server
 
       - name: Build
+        env:
+          # SvelteKit's postbuild `analyse` pass imports every server chunk, so
+          # the module-scope guards in db/index.ts and sessions/utils.ts run at
+          # build time. These placeholders only satisfy those guards: every one
+          # of these is read through $env/dynamic/private, so none is baked into
+          # the bundle, and the service reads the real values from app.env.
+          DATABASE_URL: postgres://build:build@127.0.0.1:5432/build
+          JWT_SECRET: build-time-placeholder-not-a-real-secret
+          JWT_ISSUER: build-placeholder
+          JWT_AUDIENCE: build-placeholder
+          JWT_ACCESS_TOKEN_TTL: 15m
+          REFRESH_TOKEN_TTL_DAYS: '30'
         run: bun run build
 
       - name: Stage release

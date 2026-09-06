@@ -199,7 +199,7 @@ Add these to the repository at Settings > Secrets and variables > Actions.
     TS_OAUTH_SECRET       from the same place
 
   Optional secrets (defaults in the workflow are used if unset)
-    JWT_ISSUER            family-hub--auth
+    JWT_ISSUER            family-hub-auth
     JWT_AUDIENCE          family-hub-app
     JWT_ACCESS_TOKEN_TTL  15m
     REFRESH_TOKEN_TTL_DAYS 30
