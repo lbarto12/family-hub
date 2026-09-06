@@ -51,13 +51,23 @@ fi
 
 BUN="$(command -v bun)"
 case "$BUN" in
-	"$HOME"/*)
-		warn "bun is at $BUN, inside your home directory."
-		warn "The systemd unit runs with ProtectHome=read-only; that still works, but a"
-		warn "system-wide install (/usr/local/bin/bun) is more predictable. Continuing."
+	/usr/local/bin/* | /usr/bin/* | /bin/* | /opt/*) ;;
+	*)
+		warn "bun is at $BUN, outside the system PATH."
+		warn "The deploy runs over a non-interactive SSH session, which reads neither"
+		warn "~/.bashrc nor ~/.profile — so bun will not be found there even though it"
+		warn "works when you log in. The deploy script checks the usual fallbacks, but"
+		warn "linking it system-wide is the reliable fix:"
+		warn "  sudo ln -s \"$BUN\" /usr/local/bin/bun"
 		;;
 esac
 log "bun $("$BUN" --version) at $BUN"
+
+# What a deploy actually sees: no rc files, just sshd's default PATH.
+if ! env -i PATH=/usr/local/bin:/usr/bin:/bin bash -c 'command -v bun' >/dev/null 2>&1; then
+	warn "Confirmed: bun is NOT reachable from a non-interactive shell."
+	warn "Link it system-wide with the command above before the first deploy."
+fi
 
 docker info >/dev/null 2>&1 || die "cannot talk to docker as $(id -un).
   Fix with:  sudo usermod -aG docker $(id -un)   then log out and back in."

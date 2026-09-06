@@ -96,7 +96,34 @@ parse_database_url() {
 parse_database_url "$DATABASE_URL"
 log "Database '$POSTGRES_DB' as user '$POSTGRES_USER'"
 
-BUN="$(command -v bun)" || die "bun is not on PATH for $(whoami)"
+# A non-interactive SSH session sources neither ~/.bashrc nor ~/.profile, so a
+# per-user bun install is invisible here even though `bun --version` works when
+# you log in. Fall back to the usual install locations before giving up.
+find_bun() {
+	local candidate
+	if candidate="$(command -v bun 2>/dev/null)"; then
+		printf '%s' "$candidate"
+		return 0
+	fi
+	for candidate in "$HOME/.bun/bin/bun" /usr/local/bin/bun /usr/bin/bun /opt/bun/bin/bun; do
+		if [[ -x "$candidate" ]]; then
+			printf '%s' "$candidate"
+			return 0
+		fi
+	done
+	return 1
+}
+
+BUN="$(find_bun)" || die "cannot find bun for $(whoami).
+  It is not on this session's PATH ($PATH) and not in any of the usual places.
+  A non-interactive SSH session does not read ~/.bashrc, so if bun lives under
+  your home directory, link it somewhere system-wide:
+    sudo ln -s \"\$HOME/.bun/bin/bun\" /usr/local/bin/bun"
+
+# Nested tooling expects bun on PATH even though we invoke it by absolute path.
+PATH="$(dirname "$BUN"):$PATH"
+export PATH
+log "Using bun at $BUN ($("$BUN" --version))"
 
 # ---------------------------------------------------------------------------
 # Dependencies
