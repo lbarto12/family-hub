@@ -49,17 +49,18 @@
 			{#if state.menuOpen}
 				<ul class="menu dropdown-content z-1 mt-3 w-52 gap-1 rounded-box bg-base-100 p-2 shadow">
 					<!-- collapsed navigation options go here -->
+					<a class="btn btn-ghost" href={resolve('/dashboard/gaming')}>Gaming</a>
 				</ul>
 			{/if}
 		</div>
 
-		<a class="btn btn-ghost text-xl" href={resolve('/dashboard')}>skel</a>
+		<a class="btn btn-ghost text-xl" href={resolve('/dashboard')}>Family Hub</a>
 	</div>
 
 	<div class="navbar-center hidden lg:flex">
 		<ul class="menu menu-horizontal gap-1 px-1">
 			<!-- navigation options go here -->
-			<a class="btn btn-primary" href={resolve('/dashboard/gaming')}>Gaming</a>
+			<a class="btn btn-ghost" href={resolve('/dashboard/gaming')}>Gaming</a>
 		</ul>
 	</div>
 
