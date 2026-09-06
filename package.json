@@ -23,6 +23,7 @@
 		"db:migrate:run": "bun run scripts/migrate.ts",
 		"db:studio": "drizzle-kit studio",
 		"db:admin": "bun run scripts/create-admin.ts",
+		"db:user": "bun run scripts/create-user.ts",
 		"pr": "bun run lint:fix && bun run check"
 	},
 	"devDependencies": {
