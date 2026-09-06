@@ -28,8 +28,12 @@ jobs:
     env:
       APP_DIR: ${{ secrets.APP_DIR || '/opt/family-hub' }}
       APP_PORT: ${{ secrets.APP_PORT || '3000' }}
-      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      # A secret is masked as *** everywhere in the logs, which makes a
+      # connection failure hard to read. Neither of these is sensitive — a
+      # tailnet address is useless without a key — so setting them as
+      # repository *variables* instead makes the logs legible.
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST || vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER || vars.DEPLOY_USER }}
       RELEASE: ${{ github.sha }}
 
     steps:
@@ -152,17 +156,50 @@ jobs:
 
       - name: Wait for the machine
         run: |
-          set -euo pipefail
+          set -uo pipefail
+
+          echo "::group::This runner's tailnet identity"
+          # The tags here must include tag:ci, or a grant with src tag:ci will
+          # not match this node and every connection is dropped.
+          tailscale status --json 2>/dev/null \
+            | grep -oE '"(Self|Tags|TailscaleIPs)"|tag:[a-z0-9-]+|100\.[0-9.]+' \
+            | head -20 || echo "(could not read tailscale status)"
+          echo "::endgroup::"
+
+          # Separate the two failure modes: a blocked tailnet path never
+          # completes a TCP handshake, whereas a key problem connects and then
+          # refuses. `ssh true` alone cannot tell them apart.
+          tcp_ok=0
           for i in $(seq 1 15); do
-            if ssh -o BatchMode=yes deploy-target true 2>/dev/null; then
-              echo "Reachable at $DEPLOY_HOST"
-              exit 0
+            if timeout 5 bash -c "cat < /dev/null > /dev/tcp/$DEPLOY_HOST/22" 2>/dev/null; then
+              echo "TCP 22 reachable on attempt $i"
+              tcp_ok=1
+              break
             fi
-            echo "Attempt $i: not reachable yet"
+            echo "Attempt $i: no TCP route to port 22 yet"
             sleep 4
           done
-          echo "::error::$DEPLOY_HOST is not reachable over the tailnet."
-          echo "Check that tag:ci is allowed to reach it on port 22 in your ACL."
+
+          if (( tcp_ok == 0 )); then
+            echo "::error::No TCP route to port 22 — this is a tailnet policy problem, not SSH."
+            echo "Check, in the Tailscale admin console:"
+            echo "  1. This runner shows up in Machines, tagged tag:ci"
+            echo "  2. A grant exists with src tag:ci, dst the machine, ip tcp:22"
+            echo "  3. DEPLOY_HOST matches that machine (its 100.x address is safest)"
+            exit 1
+          fi
+
+          if ssh -o BatchMode=yes deploy-target true; then
+            echo "SSH authentication succeeded"
+            exit 0
+          fi
+
+          echo "::error::Port 22 is reachable but SSH was refused — a key problem, not the network."
+          echo "Verbose handshake follows."
+          ssh -vv -o BatchMode=yes deploy-target true 2>&1 | tail -40
+          echo "Check that DEPLOY_SSH_KEY is the full private key (BEGIN/END lines included),"
+          echo "that DEPLOY_USER is right, and that the matching .pub is in that user's"
+          echo "~/.ssh/authorized_keys on the machine."
           exit 1
 
       - name: Ship release
