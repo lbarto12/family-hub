@@ -121,7 +121,9 @@ BUN="$(find_bun)" || die "cannot find bun for $(whoami).
     sudo ln -s \"\$HOME/.bun/bin/bun\" /usr/local/bin/bun"
 
 # Nested tooling expects bun on PATH even though we invoke it by absolute path.
-PATH="$(dirname "$BUN"):$PATH"
+# Appended, never prepended: a global bin directory must not be able to shadow
+# coreutils like install(1) for the rest of this script.
+PATH="$PATH:$(dirname "$BUN")"
 export PATH
 log "Using bun at $BUN ($("$BUN" --version))"
 
@@ -139,10 +141,30 @@ log "Installing production dependencies"
 # Database
 # ---------------------------------------------------------------------------
 # Shipped with the release so compose changes deploy like everything else.
+[[ -f "$NEW_RELEASE/deploy/compose.yaml" ]] \
+	|| die "release is missing deploy/compose.yaml — the workflow did not stage it"
 install -m 0644 "$NEW_RELEASE/deploy/compose.yaml" "$COMPOSE_FILE"
 
+# install(1) exiting 0 is not proof the file is there: a shadowed `install` on
+# PATH would also succeed quietly.
+[[ -f "$COMPOSE_FILE" ]] || die "install reported success but $COMPOSE_FILE does not exist.
+  install(1) resolved to: $(command -v install)
+  If that is not /usr/bin/install, something on PATH is shadowing coreutils."
+
 log "Starting postgres"
-docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --remove-orphans
+if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d --remove-orphans; then
+	# The file demonstrably exists — the check above proved it — so a "no such
+	# file" from docker means docker cannot *see* it. Snap-packaged docker is
+	# confined and cannot read outside $HOME, which looks exactly like this.
+	warn "docker compose failed on a file that exists and is readable:"
+	ls -l "$COMPOSE_FILE" >&2 || true
+	if [[ -e /snap/bin/docker ]] || command -v docker | grep -q '^/snap/'; then
+		warn "docker is installed as a snap, which cannot read outside \$HOME."
+		warn "Install it from your distro's packages, or set the APP_DIR secret to a"
+		warn "path under the deploy user's home directory."
+	fi
+	die "could not start postgres"
+fi
 
 log "Waiting for postgres to accept connections"
 deadline=$((SECONDS + 120))
