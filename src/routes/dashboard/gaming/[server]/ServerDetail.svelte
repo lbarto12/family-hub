@@ -84,6 +84,18 @@
 		</div>
 	</div>
 
+	{#if state.joinAddress}
+		<div
+			class="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-box border border-base-300 bg-base-100 px-5 py-4"
+		>
+			<span class="text-xs text-base-content/60">Join address</span>
+			<code class="grow font-mono text-lg tracking-tight select-all">{state.joinAddress}</code>
+			<button type="button" class="btn btn-sm" onclick={() => state.copyJoinAddress()}>
+				Copy
+			</button>
+		</div>
+	{/if}
+
 	<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
 		<div class="rounded-box border border-base-300 bg-base-100 p-4">
 			<div class="text-xs text-base-content/60">Uptime ({RANGE_LABELS[state.range]})</div>

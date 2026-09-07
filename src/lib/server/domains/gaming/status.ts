@@ -4,6 +4,7 @@ import {
 	type ServerStatus,
 	type ServerStatusList
 } from '$lib/types/rpcs/private/gaming/servers';
+import { Get as PublicAddress } from './address';
 import { Snapshot } from './poller';
 import { Latest } from './snapshots';
 
@@ -69,6 +70,7 @@ export const All = async (): Promise<ServerStatusList> => {
 
 	return {
 		polling: snapshot.polling,
+		publicAddress: await PublicAddress(),
 		servers: GAME_SERVERS.map((server): ServerStatus => {
 			const reading: Reading = readingFor(server.slug);
 			return { slug: server.slug, label: server.label, ...reading };

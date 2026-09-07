@@ -21,6 +21,9 @@ export interface Fields {
 	readonly slug: GameServerSlug;
 	readonly label: string;
 	readonly status: ServerStatus | null;
+	/** "<address>:<port>", or null until the address resolves */
+	readonly joinAddress: string | null;
+	copyJoinAddress: () => Promise<undefined>;
 	readonly history: HistoryResponse | null;
 	readonly range: HistoryRange;
 	readonly loading: boolean;
@@ -41,12 +44,37 @@ const TIME_FORMATS: Record<HistoryRange, Intl.DateTimeFormatOptions> = {
 
 export const NewServerPage = (slug: GameServerSlug): Fields => {
 	let status: ServerStatus | null = $state(null);
+	let publicAddress: string | null = $state(null);
 	let history: HistoryResponse | null = $state(null);
 	let range: HistoryRange = $state('day');
 	let loading: boolean = $state(true);
 	let warned: boolean = $state(false);
 
 	const label: string = findGameServer(slug)?.label ?? slug;
+	const port: number | undefined = findGameServer(slug)?.port;
+
+	// $derived.by, not $derived: reading the rune inside a closure keeps the
+	// declared type, where a bare expression narrows it to its initial null
+	const joinAddress: string | null = $derived.by((): string | null => {
+		if (publicAddress === null || port === undefined) return null;
+		return `${publicAddress}:${String(port)}`;
+	});
+
+	/**
+	 * The clipboard API needs a secure context, so this fails over plain http on
+	 * the LAN — say so rather than silently doing nothing. The address is
+	 * selectable text either way.
+	 */
+	const copyJoinAddress = async (): Promise<undefined> => {
+		if (!joinAddress) return;
+
+		try {
+			await navigator.clipboard.writeText(joinAddress);
+			toast({ type: 'toast', message: `Copied ${joinAddress}` });
+		} catch {
+			toast({ type: 'error', message: 'Could not copy — select the address instead' });
+		}
+	};
 
 	const fail = (e: unknown): undefined => {
 		if (e instanceof Error && !warned) {
@@ -59,6 +87,7 @@ export const NewServerPage = (slug: GameServerSlug): Fields => {
 		try {
 			const result = await API.private.gaming.status.All();
 			status = result.servers.find((s): boolean => s.slug === slug) ?? null;
+			publicAddress = result.publicAddress;
 			warned = false;
 		} catch (e: unknown) {
 			fail(e);
@@ -118,6 +147,10 @@ export const NewServerPage = (slug: GameServerSlug): Fields => {
 		get status() {
 			return status;
 		},
+		get joinAddress() {
+			return joinAddress;
+		},
+		copyJoinAddress,
 		get history() {
 			return history;
 		},

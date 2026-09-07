@@ -27,5 +27,9 @@ export const gamingConfig = {
 	// Kept under the poll interval so a hung probe cannot queue up behind itself
 	probeTimeoutMs: int(env.GAME_PROBE_TIMEOUT_MS, 4_000),
 	retentionDays: int(env.GAME_RETENTION_DAYS, 90),
+	// Set GAME_PUBLIC_ADDRESS to a DDNS hostname to skip the lookup entirely
+	publicAddress: env.GAME_PUBLIC_ADDRESS ?? null,
+	publicAddressUrl: env.GAME_PUBLIC_ADDRESS_URL ?? 'https://ifconfig.me/ip',
+	publicAddressTtlMs: int(env.GAME_PUBLIC_ADDRESS_TTL_MS, 30 * 60 * 1_000),
 	sweepIntervalMs: int(env.GAME_SWEEP_INTERVAL_MS, 60 * 60 * 1_000)
 };

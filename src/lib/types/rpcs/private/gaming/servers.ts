@@ -7,8 +7,10 @@ import z from 'zod';
  * icon case in GameIcon.svelte.
  */
 export const GAME_SERVERS = [
-	{ slug: 'minecraft', label: 'Minecraft', unit: 'minecraft.service' },
-	{ slug: 'valheim', label: 'Valheim', unit: 'valheim.service' }
+	// port is what players type after the address — the stock port for each game.
+	// Change it here if a server has been moved off its default.
+	{ slug: 'minecraft', label: 'Minecraft', unit: 'minecraft.service', port: 25565 },
+	{ slug: 'valheim', label: 'Valheim', unit: 'valheim.service', port: 2456 }
 ] as const;
 
 export type GameServer = (typeof GAME_SERVERS)[number];
@@ -46,7 +48,9 @@ export const ServerStatusSchema = z.object({
 export const ServerStatusListSchema = z.object({
 	servers: z.array(ServerStatusSchema),
 	// Whether the background poller is running in this process at all
-	polling: z.boolean()
+	polling: z.boolean(),
+	// The WAN address players connect to, or null if it could not be resolved
+	publicAddress: z.string().nullable()
 });
 
 export const HISTORY_RANGES = ['hour', 'day', 'week', 'month'] as const;
