@@ -232,6 +232,9 @@ jobs:
           JWT_ACCESS_TOKEN_TTL: ${{ secrets.JWT_ACCESS_TOKEN_TTL || '15m' }}
           REFRESH_TOKEN_TTL_DAYS: ${{ secrets.REFRESH_TOKEN_TTL_DAYS || '30' }}
           APP_ORIGIN: ${{ secrets.APP_ORIGIN }}
+          # Argon2id PHC string from `vaultwarden hash`. Optional: unset leaves
+          # the vault's admin panel disabled rather than failing the deploy.
+          VAULTWARDEN_ADMIN_TOKEN: ${{ secrets.VAULTWARDEN_ADMIN_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -261,6 +264,9 @@ jobs:
           put JWT_AUDIENCE "$JWT_AUDIENCE"
           put JWT_ACCESS_TOKEN_TTL "$JWT_ACCESS_TOKEN_TTL"
           put REFRESH_TOKEN_TTL_DAYS "$REFRESH_TOKEN_TTL_DAYS"
+          # Full of '$' — put() quotes and escapes rather than expanding, and
+          # nothing downstream sources this file, so the hash survives verbatim.
+          put VAULTWARDEN_ADMIN_TOKEN "$VAULTWARDEN_ADMIN_TOKEN"
 
           # Written 0600 and moved into place atomically, so a half-written file
           # is never visible to the service.

@@ -64,6 +64,17 @@ export DATABASE_URL
 PORT="$(env_get PORT || true)"
 PORT="${PORT:-3000}"
 
+# Consumed by compose, not by the app. Optional on purpose: the compose file
+# defaults it to empty, which disables vaultwarden's admin panel, so a deploy
+# without the secret set is degraded rather than broken.
+VAULTWARDEN_ADMIN_TOKEN="$(env_get VAULTWARDEN_ADMIN_TOKEN || true)"
+export VAULTWARDEN_ADMIN_TOKEN
+if [[ -n "$VAULTWARDEN_ADMIN_TOKEN" ]]; then
+	log "Vaultwarden admin panel enabled"
+else
+	warn "VAULTWARDEN_ADMIN_TOKEN is unset; vaultwarden's admin panel stays disabled"
+fi
+
 # postgres://user:pass@host:port/db -> POSTGRES_USER / _PASSWORD / _DB.
 # Values are percent-decoded, since a URL-encoded password is legal here.
 urldecode() {
