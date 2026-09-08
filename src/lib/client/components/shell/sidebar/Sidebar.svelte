@@ -66,6 +66,10 @@
 						>
 							{#if link.icon === 'dashboard'}
 								<path d="M4 4h6v7H4zM14 4h6v5h-6zM14 13h6v7h-6zM4 15h6v5H4z" />
+							{:else if link.icon === 'passwords'}
+								<path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 8.5-4.1-.9-7-4.3-7-8.5V6l7-3Z" />
+								<circle cx="12" cy="10.5" r="1.9" />
+								<path d="M12 12.4v3.1" />
 							{:else if link.icon === 'gaming'}
 								<path
 									d="M7 8h10a4 4 0 0 1 4 4v1a3 3 0 0 1-5.1 2.1l-.9-.9H9l-.9.9A3 3 0 0 1 3 13v-1a4 4 0 0 1 4-4Z"
