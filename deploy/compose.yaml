@@ -29,5 +29,39 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  # Bitwarden-compatible vault server. Deliberately NOT sharing the app's
+  # postgres: SQLite on its own volume is what upstream recommends at this size,
+  # and it keeps the vault's lifecycle independent of the app's database.
+  #
+  # The vault is end-to-end encrypted by the Bitwarden clients, so this server
+  # only ever stores ciphertext. That property depends on people using the real
+  # clients (iOS/Android/extension) rather than a web vault this box serves.
+  vaultwarden:
+    image: vaultwarden/server:1.37.2-alpine
+    restart: unless-stopped
+    # Loopback only, exactly like postgres: tailscale decides who reaches this.
+    ports:
+      - 127.0.0.1:${VAULTWARDEN_PORT:-8222}:80
+    environment:
+      # Used to build invite links and as the WebAuthn relying-party ID. It must
+      # match the URL people actually visit, or 2FA and invites break.
+      DOMAIN: ${VAULTWARDEN_DOMAIN:-https://primary.tail84c71b.ts.net:8443}
+      # No open registration on an internet-facing vault. Family members are
+      # invited, which still requires them to be confirmed.
+      SIGNUPS_ALLOWED: 'true'
+      INVITATIONS_ALLOWED: 'true'
+      # Empty disables the admin panel outright, which is the right default
+      # until a real token is wired through app.env.
+      ADMIN_TOKEN: ${VAULTWARDEN_ADMIN_TOKEN:-}
+    volumes:
+      - vaultwarden:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://127.0.0.1/alive || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 volumes:
   pgdata:
+  vaultwarden:

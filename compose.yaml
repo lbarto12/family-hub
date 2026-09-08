@@ -10,5 +10,52 @@ services:
       POSTGRES_DB: familyhubdev
     volumes:
       - pgdata:/var/lib/postgresql
+
+  # Mirrors the vaultwarden service in deploy/compose.yaml, pinned to the same
+  # version so local behaviour matches the machine. Two values differ on purpose,
+  # both marked below — this instance is throwaway and must be usable without an
+  # admin token to invite yourself.
+  vaultwarden:
+    image: vaultwarden/server:1.37.2-alpine
+    restart: no
+    # Loopback even in dev: there is no reason for a vault to answer the LAN.
+    # Reach it through vault-tls on 8443, not directly on 8222 — see below.
+    ports:
+      - 127.0.0.1:8222:80
+    environment:
+      # DIFFERS FROM PROD: the local URL, so invite links and WebAuthn resolve
+      # here. It points at the TLS proxy below, not at this container's port.
+      DOMAIN: https://localhost:8443
+      # DIFFERS FROM PROD: open registration, so you can make a test account
+      # without wiring an admin token. Never do this on the deployed instance.
+      SIGNUPS_ALLOWED: 'true'
+      INVITATIONS_ALLOWED: 'true'
+    volumes:
+      - vaultwarden:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://127.0.0.1/alive || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+  # The Bitwarden web vault refuses any non-HTTPS API base and makes no
+  # exception for localhost, so http://localhost:8222 fails on every request
+  # with "Insecure URL not allowed" — the browser is fine with it, the client
+  # is not. Dev therefore needs TLS in front, the same as the deployed instance.
+  #
+  # The certificate is Caddy's own local CA, so the browser shows a warning
+  # once; accept it, or trust the CA from the caddy_data volume.
+  vault-tls:
+    image: caddy:alpine
+    restart: no
+    depends_on:
+      - vaultwarden
+    ports:
+      - 127.0.0.1:8443:8443
+    command: caddy reverse-proxy --from https://localhost:8443 --to vaultwarden:80
+    volumes:
+      - caddy:/data
 volumes:
   pgdata:
+  vaultwarden:
+  caddy:
