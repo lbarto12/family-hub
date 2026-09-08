@@ -49,7 +49,7 @@ services:
       DOMAIN: ${VAULTWARDEN_DOMAIN:-https://primary.tail84c71b.ts.net:8443}
       # No open registration on an internet-facing vault. Family members are
       # invited, which still requires them to be confirmed.
-      SIGNUPS_ALLOWED: 'true'
+      SIGNUPS_ALLOWED: 'false'
       INVITATIONS_ALLOWED: 'true'
       # Empty disables the admin panel outright, which is the right default
       # until a real token is wired through app.env.
