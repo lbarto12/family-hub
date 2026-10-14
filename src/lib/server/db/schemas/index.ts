@@ -3,3 +3,4 @@ export * from './users/session';
 export * from './users/profiles';
 export * from './users/roles';
 export * from './gaming/snapshots';
+export * from './contacts/contacts';

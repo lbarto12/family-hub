@@ -75,6 +75,10 @@
 									d="M7 8h10a4 4 0 0 1 4 4v1a3 3 0 0 1-5.1 2.1l-.9-.9H9l-.9.9A3 3 0 0 1 3 13v-1a4 4 0 0 1 4-4Z"
 								/>
 								<path d="M7 11.5h3M8.5 10v3M15.5 11.5h.01M17.5 13.5h.01" />
+							{:else if link.icon === 'contacts'}
+								<rect x="5" y="3" width="14" height="18" rx="2" />
+								<circle cx="12" cy="10" r="2.5" />
+								<path d="M8.5 16.5a3.5 3.5 0 0 1 7 0M3 7.5h2M3 12h2M3 16.5h2" />
 							{/if}
 						</svg>
 

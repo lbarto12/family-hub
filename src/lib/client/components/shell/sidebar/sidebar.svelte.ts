@@ -1,6 +1,6 @@
 import type { RouteId, RouteParams } from '$app/types';
 
-export type IconName = 'dashboard' | 'gaming' | 'passwords';
+export type IconName = 'dashboard' | 'gaming' | 'passwords' | 'contacts';
 
 // Routes that take no params, so a nav entry is always resolvable on its own
 export type NavRoute = {
@@ -16,7 +16,8 @@ export interface NavLink {
 export const links: readonly NavLink[] = [
 	{ route: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
 	{ route: '/dashboard/gaming', label: 'Gaming', icon: 'gaming' },
-	{ route: '/dashboard/passwords', label: 'Passwords', icon: 'passwords' }
+	{ route: '/dashboard/passwords', label: 'Passwords', icon: 'passwords' },
+	{ route: '/dashboard/contacts', label: 'Contacts', icon: 'contacts' }
 ];
 
 export interface Fields {

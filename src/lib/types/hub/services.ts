@@ -5,12 +5,13 @@
  * external ones carry a full URL, because they are separate services this app
  * only links to.
  */
-export type ServiceIcon = 'gaming' | 'passwords' | 'profile';
+export type ServiceIcon = 'gaming' | 'passwords' | 'contacts' | 'profile';
 
 export type ServiceDestination =
 	| {
 			readonly kind: 'route';
-			readonly route: '/dashboard/gaming' | '/dashboard/passwords' | '/profile';
+			readonly route:
+				'/dashboard/gaming' | '/dashboard/passwords' | '/dashboard/contacts' | '/profile';
 	  }
 	| { readonly kind: 'external'; readonly url: string };
 
@@ -44,6 +45,13 @@ export const SERVICES: readonly Service[] = [
 		icon: 'passwords',
 		accent: 'bg-secondary/10 text-secondary',
 		destination: { kind: 'route', route: '/dashboard/passwords' }
+	},
+	{
+		title: 'Contacts',
+		blurb: 'Phone numbers and addresses, ready to call or save to your phone.',
+		icon: 'contacts',
+		accent: 'bg-info/10 text-info',
+		destination: { kind: 'route', route: '/dashboard/contacts' }
 	},
 	{
 		title: 'Your profile',
